@@ -27,26 +27,64 @@ class Vec3
     }
 
     // Subtract other vector from this one and return the result
-    minus(other){}
+    minus(other)
+    {
+        return new Vec3(this.x - other.x, this.y - other.y,  this.z - other.z)
+    }
 
     // Multiply other vector by this one and return the result
-    multiply(other){}
+    multiply(other)
+    {
+        return new Vec3(this.x * other.x, this.y * other.y, this.z * other.z);
+    }
 
     // Scale this vector by the number scalar and return the result
-    scale(scalar){}
+    scale(scalar)
+    {
+        return new Vec3(this.x * scalar, this.y * scalar, this.z * scalar);
+    }
     
     // Calculate the dot product of this vector with the other and return the result
-    dot(other) {}
+    dot(other) 
+    {
+        return this.x * other.x + this.y * other.y + this.z * other.z;
+    }
 
     // Calculate and return the magnitude of this vector
-    magnitude() {}
+    magnitude() 
+    {
+        return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
+
+    }
     
     // Calculate and return the magnitude of this vector without the square root
-    magnitudeSquared() {}
+    magnitudeSquared() 
+    {
+        return this.x * this.x + this.y * this.y + this.z * this.z;
+
+    }
 
     // Return a normalised version of this vector
-    normalised() {}
+    normalised() 
+    {
+        let mag = this.magnitude();
+            return new Vec3(this.x / mag, this.y / mag, this.z / mag);
+    }
 }
+
+const v1 = new Vec3(1, 2, 3);
+        const v2 = new Vec3(4, 5, 6);
+
+        // Log results to console
+        console.log("add", v1.add(v2));
+        console.log("minus", v1.minus(v2));
+        console.log("multiplication", v1.multiply(v2));
+        console.log("v1 scaled by 2", v1.scale(2));
+        console.log("Dot product", v1.dot(v2));
+        console.log("Magnitude", v1.magnitude());
+        console.log("Magnitude squared:", v1.magnitudeSquared());
+        console.log("Normalized:", v1.normalised());
+
 
 // A sphere in 3D space. Has centre, radius and colour all of which are Vec3s
 class Sphere
@@ -62,7 +100,20 @@ class Sphere
     // a quadratic equation and return the t value of the ray for that point
     // If two solutions exist return the minus solution
     // If no solutions exist return -1
-    rayIntersects(ray)  {}
+    rayIntersects(ray)
+    {
+        let a = ray.direction.dot(ray.direction)
+        let b = 2 * (ray.direction.dot(ray.origin.minus(this.centre)))
+        let c = (ray.origin.minus(this.centre)).dot(ray.origin.minus(this.centre)) - (this.radius * this.radius)
+        let discriminant  = b**2 - 4*a*c
+
+        if (discriminant > 0)
+            return -b - Math. sqrt(discriminant )/(2*a)
+        if (discriminant  == 0)
+            return -b /(2*a)
+        else    
+            return -1 
+    }
 }
 
 // Ray which has an origin and direction, both are Vec3s
@@ -75,7 +126,10 @@ class Ray
     }
 
     // Calculate and return the point in space (a Vec3) for this ray for the given value of t
-    pointAt(t) {}
+    pointAt(t) 
+    {
+        return new Vec3(this.orgin + this.direction.scale(t))
+    }
 }
 
 // The result of casting a ray into our scene
@@ -95,7 +149,12 @@ class RayCastResult
 }
 
 // Calculate the intersection point and normal when a ray hits a sphere. Returns a RayCastResult.
-function hit(ray, t, sphereIndex) {}
+function hit(ray, t, sphereIndex) 
+{
+    let intersectionPoint = ray.pointAt(t)
+    let intersectionNormal = (intersectionPoint.minus(spheres[sphereIndex].centre)).magnitude()
+    return new RayCastResult(intersectionPoint, intersectionNormal, t, sphereIndex)
+}
 
 // Return a RayCastResult when a ray misses everything in the scene
 function miss()
@@ -106,13 +165,19 @@ function miss()
 // Check whether a ray hits anything in the scene and return a RayCast Result
 function traceRay(ray)
 {
-    return miss()
+    let sphere = spheres[0];
+    let t = sphere.rayIntersects(ray)
+    if(t < 0) return miss()
+    else return hit(ray,t,0)
 }
 
 // Calculate and return the background colour based on the ray
 function backgroundColour(ray)
 {
-        return new Vec3(0.3,0.5,0.9) // Blue
+    let white = new Vec3(1,1,1)
+    let blue = new Vec3(0.3,0.5,0.9)
+    t = 0.5*(ray.direction.y +1.0)
+    return white.scale(1-t).add(blue.scale(t)) 
 }
 
 // Returns the colour the ray should have as a Vec3 with RGB values in [0,1]
@@ -142,7 +207,16 @@ const spheres = new Array(
 // Main code
 let imageWidth = document.getElementById("canvas").width
 let imageHeight = document.getElementById("canvas").height
-let aspectRatio = document.getElementById("canvas").height / document.getElementById("canvas").width
+let aspectRatio = imageHeight / imageWidth
+
+let viewportWidth = 2
+let viewportHeight = viewportWidth * aspectRatio
+let focalLength = 1.0
+
+let camPosition = new Vec3(0, 0, 0)
+let horizontal = new Vec3(viewportWidth, 0, 0)
+let vertical = new Vec3(0, viewportHeight, 0)
+let lowerLeftCorner = camPosition.minus(horizontal.scale(0.5)).minus(vertical.scale(0.5)).minus(new Vec3(0 ,0 , focalLength))
 
 let colour = new Vec3(0,0,0)
 
@@ -150,6 +224,12 @@ for (let i = 0; i < imageWidth; i++)
 {
     for (let j = 0; j <= imageHeight; j++)
     {
+        let u = i / (imageWidth-1)
+        let v = j / (imageHeight-1)
+        
+
+        let ray = new Ray(camPosition, lowerLeftCorner.add(horizontal.scale(u)).add(vertical.scale(v)).minus(camPosition))
+        colour = rayColour(ray).scale(255)
         setPixel(i,j,colour)
     }
 }
