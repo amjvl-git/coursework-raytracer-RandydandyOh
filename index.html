@@ -67,8 +67,9 @@ class Vec3
     // Return a normalised version of this vector
     normalised() 
     {
-        let mag = this.magnitude();
-            return new Vec3(this.x / mag, this.y / mag, this.z / mag);
+        let mag = Math.sqrt((this.x * this.x) + (this.y * this.y) + (this.z * this.z))
+        let unitVector = 1 / mag
+        return new Vec3(this.x * unitVector, this.y * unitVector, this.z *unitVector);
     }
 }
 
@@ -108,11 +109,17 @@ class Sphere
         let discriminant  = b**2 - 4*a*c
 
         if (discriminant > 0)
-            return -b - Math. sqrt(discriminant )/(2*a)
-        if (discriminant  == 0)
-            return -b /(2*a)
-        else    
-            return -1 
+        {
+            return ((-b - Math.sqrt(discriminant))/(2*a))
+        }
+        else if (discriminant == 0)
+        {
+            return (-b /(2*a))
+        }
+        else if (discriminant < 0)
+        {
+            return -1
+        } 
     }
 }
 
@@ -128,7 +135,7 @@ class Ray
     // Calculate and return the point in space (a Vec3) for this ray for the given value of t
     pointAt(t) 
     {
-        return new Vec3(this.orgin + this.direction.scale(t))
+        return this.origin.add(this.direction.scale(t))
     }
 }
 
@@ -152,7 +159,7 @@ class RayCastResult
 function hit(ray, t, sphereIndex) 
 {
     let intersectionPoint = ray.pointAt(t)
-    let intersectionNormal = (intersectionPoint.minus(spheres[sphereIndex].centre)).magnitude()
+    let intersectionNormal = (intersectionPoint.minus(spheres[sphereIndex].centre).normalised())
     return new RayCastResult(intersectionPoint, intersectionNormal, t, sphereIndex)
 }
 
@@ -165,10 +172,22 @@ function miss()
 // Check whether a ray hits anything in the scene and return a RayCast Result
 function traceRay(ray)
 {
-    let sphere = spheres[0];
-    let t = sphere.rayIntersects(ray)
-    if(t < 0) return miss()
-    else return hit(ray,t,0)
+   let t = 10000000000000000
+   let closestSphereIndex = -1
+
+   for (let i=0; i < spheres.length; i++)
+   {
+        let current_t = spheres[i].rayIntersects(ray)
+        if (current_t > 0 && current_t < t)
+        {
+            t = current_t
+            closestSphereIndex = i
+        } 
+   }
+
+   if (closestSphereIndex < 0) return miss()
+
+   return hit(ray, t, closestSphereIndex)
 }
 
 // Calculate and return the background colour based on the ray
@@ -185,7 +204,13 @@ function rayColour(ray)
 {
     let castResult = traceRay(ray)
     if(castResult.t < 0) return backgroundColour(ray)
-    return new Vec3(1,0,0) // Red
+    
+    let albedo = spheres[castResult.sphereIndex].colour
+    let diffuse = Math.max(castResult.normal.dot(negLightDirection),0)
+    console.log(diffuse)
+    let colour = albedo.scale(diffuse)
+
+    return colour
 }
 
 // Sets a pixel at (x, y) in the canvas with an RGB Vec3
@@ -219,6 +244,10 @@ let vertical = new Vec3(0, viewportHeight, 0)
 let lowerLeftCorner = camPosition.minus(horizontal.scale(0.5)).minus(vertical.scale(0.5)).minus(new Vec3(0 ,0 , focalLength))
 
 let colour = new Vec3(0,0,0)
+
+let lightDirection = new Vec3(-1.1,-1.3,-1.5).normalised();
+let negLightDirection = new Vec3(-lightDirection.x,-lightDirection.y, -lightDirection.z)
+
 
 for (let i = 0; i < imageWidth; i++)
 {
